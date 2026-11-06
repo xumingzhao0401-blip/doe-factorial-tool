@@ -39,7 +39,22 @@
   .tabs button.on{background:var(--acc);color:#fff}
   footer{color:var(--sub);font-size:12px;text-align:center;padding:8px 0 22px}
   .small{font-size:12.5px;color:var(--sub)}
-  @media(max-width:640px){td input{width:60px}td input.name{width:88px}.bar-row{grid-template-columns:80px 1fr 110px}}
+  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .scroll table{min-width:600px}
+  #runTable{min-width:680px}
+  #intSvg{width:100%;height:auto;display:block}
+  img{max-width:100%}
+  @media(max-width:640px){
+    main{padding:10px}
+    section{padding:12px}
+    header{padding:14px}
+    header h1{font-size:17px}
+    td input{width:60px}td input.name{width:88px}
+    .bar-row{grid-template-columns:76px 1fr 104px;font-size:12px}
+    button{padding:8px 12px}
+    .eq{font-size:12px}
+    input[type=file]{max-width:150px}
+  }
 </style>
 </head>
 <body>
@@ -51,9 +66,9 @@
 
 <section>
   <h2>示例与数据</h2>
-  <p class="hint">键合案例是真实出处案例（数据摘自公开文章，中心点为按原文描述设的示意值）；注塑案例是构造数据，只用于演示操作；「空白新建」从你自己的实验开始。切换示例会覆盖当前内容。你的编辑会自动保存在本机浏览器里，关掉重开还在。</p>
+  <p class="hint">示例1 是封装键合的参数优化案例（中心点为演示用示意重复值）；示例2 注塑成型是构造数据，只用于演示操作；「空白新建」从你自己的实验开始。切换示例会覆盖当前内容。你的编辑会自动保存在本机浏览器里，关掉重开还在。</p>
   <div class="row">
-    <button class="ghost" id="exBonding">示例1：键合参数（文章案例）</button>
+    <button class="ghost" id="exBonding">示例1：键合参数优化</button>
     <button class="ghost" id="exMolding">示例2：注塑成型（构造数据）</button>
     <button class="ghost" id="exBlank">空白新建</button>
     <span class="small" id="saveState"></span>
@@ -63,18 +78,18 @@
 <section>
   <h2><span class="step">1</span>因子、水平与响应</h2>
   <p class="hint">因子 2–5 个（角点 2<sup>k</sup> 个），响应 1–4 个。水平间距按设备能力和历史工艺窗口定，不要超出安全区。每个响应单独定目标方向（越大越好 / 越小越好）。</p>
-  <table id="factorTable">
+  <div class="scroll"><table id="factorTable">
     <thead><tr><th>符号</th><th>因子名</th><th>低水平 (−1)</th><th>高水平 (+1)</th><th>中心 (0)</th><th>单位</th><th></th></tr></thead>
     <tbody></tbody>
-  </table>
+  </table></div>
   <div class="row">
     <button class="ghost" id="addFactor">＋ 加因子</button>
     <label>中心点个数 <input type="number" id="nCenter" value="3" min="0" max="9" style="width:56px"></label>
   </div>
-  <table id="respTable">
+  <div class="scroll"><table id="respTable">
     <thead><tr><th>响应</th><th>名称</th><th>目标</th><th></th></tr></thead>
     <tbody></tbody>
-  </table>
+  </table></div>
   <button class="ghost" id="addResp">＋ 加响应</button>
 </section>
 
@@ -88,7 +103,7 @@
     <button class="ghost" id="btnCsv">导出 CSV</button>
     <label class="small">导入 CSV <input type="file" id="csvFile" accept=".csv" style="width:180px"></label>
   </div>
-  <div style="overflow-x:auto"><table id="runTable">
+  <div class="scroll"><table id="runTable">
     <thead></thead><tbody></tbody>
   </table></div>
 </section>
@@ -112,7 +127,7 @@
     <label>分线因子 <select id="intLine"></select></label>
     <span class="small" id="intNote"></span>
   </div>
-  <svg id="intSvg" width="520" height="300" style="max-width:100%;background:#fbfcfe;border:1px solid var(--line);border-radius:8px"></svg>
+  <svg id="intSvg" viewBox="0 0 520 300" preserveAspectRatio="xMidYMid meet" style="background:#fbfcfe;border:1px solid var(--line);border-radius:8px"></svg>
 </section>
 
 <section>
@@ -124,7 +139,7 @@
     <button id="btnOpt">搜索兼顾窗口</button>
     <span id="weightBox" class="row"></span>
   </div>
-  <div style="overflow-x:auto"><table id="optTable"><thead></thead><tbody></tbody></table></div>
+  <div class="scroll"><table id="optTable"><thead></thead><tbody></tbody></table></div>
   <p class="small" id="optNote"></p>
   <div class="note">⚠️ 模型只含主效应 + 二因子交互（线性 + 交互），不含平方项。若中心点均值与角点均值差得明显（见第 3 步曲率提示），说明有曲率，下一步应改用响应曲面（中心复合 / Box-Behnken）精调，别拿这个方程外推。</div>
 </section>
@@ -207,7 +222,7 @@ if(typeof window!=="undefined") window.DOE_CORE = {buildTerms, termName, analyze
 /* ---------- 示例数据 ---------- */
 const EXAMPLES = {
   bonding: {
-    label: "键合参数（文章案例）",
+    label: "键合参数优化案例",
     factors: [
       {name:"超声功率", low:60, high:70, unit:"mW"},
       {name:"键合压力", low:40, high:50, unit:"cN"},
@@ -215,7 +230,7 @@ const EXAMPLES = {
     responses: [{name:"球剪切力", goal:"max"}, {name:"颈部开裂", goal:"min"}],
     cornerY: [[35.7,140],[39.7,260],[36.7,120],[45.1,300],[38.3,200],[40.3,320],[38.9,100],[46.3,360]],
     centerY: [[40.1,205],[39.8,195],[40.2,200]],
-    centerNote: "注：预置的中心点数值是按原文「落在 40g / 200ppm 附近」的描述设的示意重复值，原文未给中心点逐行数据。"
+    centerNote: "注：中心点数值是演示用示意重复值（落在 40g / 200ppm 附近），正式分析请替换为真实中心点数据。"
   },
   molding: {
     label: "注塑成型（构造数据）",
@@ -595,7 +610,7 @@ $("btnOpt").addEventListener("click",()=>{
     c.pred.map(p=>`<td>${fmt(p)}</td>`).join("") +
     `<td>${fmt(c.score,3)}</td></tr>`).join("");
   $("optNote").textContent = currentExample==="bonding"
-    ? "键合案例提示：等权（1:1）时最优点偏向 A 低水平，因为开裂主要由 A 驱动（实测效应 +170 ppm，远大于 A×B 的 +50）；原文推荐 A+B+C−（45.1g / 300ppm）相当于把剪切力权重拉高、并接受 300 ppm 为可接受上限。两边不矛盾，差的是目标函数。"
+    ? "键合案例提示：等权（1:1）时最优点偏向 A 低水平，因为开裂主要由 A 驱动（效应 +170 ppm，远大于 A×B 的 +50）；把剪切力权重拉高、并接受 300 ppm 为可接受上限时，最优点回到 A+B+C−（45.1g / 300ppm）。两种结果不矛盾，差的是目标函数。"
     : "";
 });
 
