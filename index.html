@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOE 全因子实验设计工具 · 2^k + 中心点（通用版）</title>
+<style>
+  :root{--bg:#f4f6f9;--card:#fff;--ink:#1c2733;--sub:#5b6b7c;--line:#dde4ec;--acc:#0b6bcb;--acc2:#e8f2fc;--warnbg:#fef3c7;--good:#15803d;--bad:#dc2626}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55}
+  header{background:#0d2b45;color:#fff;padding:18px 20px}
+  header h1{margin:0;font-size:20px;font-weight:700}
+  header p{margin:6px 0 0;color:#bcd3e8;font-size:13px;max-width:920px}
+  main{max-width:1080px;margin:0 auto;padding:16px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+  h2{font-size:16px;margin:0 0 4px}
+  h2 .step{display:inline-block;background:var(--acc);color:#fff;border-radius:50%;width:22px;height:22px;line-height:22px;text-align:center;font-size:13px;margin-right:8px}
+  .hint{color:var(--sub);font-size:12.5px;margin:4px 0 10px}
+  table{border-collapse:collapse;width:100%;margin:8px 0}
+  th,td{border:1px solid var(--line);padding:6px 8px;text-align:center;font-size:13px}
+  th{background:var(--acc2);font-weight:600}
+  td input{width:78px;padding:4px 6px;border:1px solid var(--line);border-radius:5px;text-align:center;font-size:13px}
+  td input.name{width:128px;text-align:left}
+  td input.resp{width:88px;background:#fffdf0}
+  button{background:var(--acc);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:13.5px;cursor:pointer;margin:2px 4px 2px 0}
+  button.ghost{background:#fff;color:var(--acc);border:1px solid var(--acc)}
+  button:hover{opacity:.88}
+  select,input[type=number],input[type=text]{padding:5px 7px;border:1px solid var(--line);border-radius:5px;font-size:13px}
+  .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  .bar-row{display:grid;grid-template-columns:110px 1fr 150px;gap:8px;align-items:center;margin:4px 0;font-size:13px}
+  .bar-track{background:#eef2f6;border-radius:5px;height:18px}
+  .bar-fill{height:18px;border-radius:5px;background:var(--acc)}
+  .bar-fill.neg{background:#e07b39}
+  .eq{background:#0d2b45;color:#d9ecff;border-radius:8px;padding:12px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13.5px;overflow-x:auto;white-space:nowrap}
+  .note{background:var(--warnbg);color:#7c4a03;border-radius:8px;padding:10px 12px;font-size:12.5px;margin:8px 0}
+  .ok{color:var(--good)} .bad{color:var(--bad)}
+  .tabs{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+  .tabs button{background:#eef2f6;color:var(--ink)}
+  .tabs button.on{background:var(--acc);color:#fff}
+  footer{color:var(--sub);font-size:12px;text-align:center;padding:8px 0 22px}
+  .small{font-size:12.5px;color:var(--sub)}
+  @media(max-width:640px){td input{width:60px}td input.name{width:88px}.bar-row{grid-template-columns:80px 1fr 110px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>DOE 全因子实验设计工具（2<sup>k</sup> + 中心点）· 通用版</h1>
+  <p>不限行业：因子、水平、响应全部可改，适用于任何「多个工艺参数同时调、还要看交互作用」的实验——键合、电镀、注塑、蚀刻、化学合成都行。流程：定因子水平 → 生成随机运行序 → 填响应 → 效应 / Pareto / 交互作用 → 回归方程预测 → 多响应加权优化找窗口。数据只存本地浏览器，不上传。</p>
+</header>
+<main>
+
+<section>
+  <h2>示例与数据</h2>
+  <p class="hint">键合案例是真实出处案例（数据摘自公开文章，中心点为按原文描述设的示意值）；注塑案例是构造数据，只用于演示操作；「空白新建」从你自己的实验开始。切换示例会覆盖当前内容。你的编辑会自动保存在本机浏览器里，关掉重开还在。</p>
+  <div class="row">
+    <button class="ghost" id="exBonding">示例1：键合参数（文章案例）</button>
+    <button class="ghost" id="exMolding">示例2：注塑成型（构造数据）</button>
+    <button class="ghost" id="exBlank">空白新建</button>
+    <span class="small" id="saveState"></span>
+  </div>
+</section>
+
+<section>
+  <h2><span class="step">1</span>因子、水平与响应</h2>
+  <p class="hint">因子 2–5 个（角点 2<sup>k</sup> 个），响应 1–4 个。水平间距按设备能力和历史工艺窗口定，不要超出安全区。每个响应单独定目标方向（越大越好 / 越小越好）。</p>
+  <table id="factorTable">
+    <thead><tr><th>符号</th><th>因子名</th><th>低水平 (−1)</th><th>高水平 (+1)</th><th>中心 (0)</th><th>单位</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div class="row">
+    <button class="ghost" id="addFactor">＋ 加因子</button>
+    <label>中心点个数 <input type="number" id="nCenter" value="3" min="0" max="9" style="width:56px"></label>
+  </div>
+  <table id="respTable">
+    <thead><tr><th>响应</th><th>名称</th><th>目标</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <button class="ghost" id="addResp">＋ 加响应</button>
+</section>
+
+<section>
+  <h2><span class="step">2</span>实验方案与结果</h2>
+  <p class="hint">标准序是记账用的，<b>实际运行必须按随机运行序做</b>，否则设备漂移 / 环境变化会混进效应。黄色格子填实测响应，填完自动分析。也可以先导出 CSV 运行序表、在外面填好再导入。</p>
+  <div class="row">
+    <button id="btnDesign">重新生成设计</button>
+    <button class="ghost" id="btnRandom">🎲 重新随机运行序</button>
+    <button class="ghost" id="btnClearResp">清空响应</button>
+    <button class="ghost" id="btnCsv">导出 CSV</button>
+    <label class="small">导入 CSV <input type="file" id="csvFile" accept=".csv" style="width:180px"></label>
+  </div>
+  <div style="overflow-x:auto"><table id="runTable">
+    <thead></thead><tbody></tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="step">3</span>效应分析（Pareto）</h2>
+  <p class="hint">效应 = 该项取 +1 时的响应均值 − 取 −1 时的均值（仅用角点计算）；回归系数 = 效应 / 2。条长按 |效应| 排序。中心点给出纯误差 SD：|效应| 大于约 2× 纯误差 SD 才值得认真对待（工程快速判据，正式结论看重复实验 / ANOVA）。</p>
+  <div class="tabs" id="respTabs"></div>
+  <div id="pareto"></div>
+  <div id="centerInfo" class="small"></div>
+  <h3 style="font-size:14px;margin:14px 0 4px">回归方程（编码值 −1 / 0 / +1，含主效应 + 二因子交互）</h3>
+  <div class="eq" id="equation">填齐角点响应后自动生成</div>
+</section>
+
+<section>
+  <h2><span class="step">4</span>交互作用图</h2>
+  <p class="hint">选任意两个因子：两条线越不平行，交互越强。主效应图看不出来的东西在这里现形。</p>
+  <div class="row">
+    <label>响应 <select id="intResp"></select></label>
+    <label>横轴因子 <select id="intX"></select></label>
+    <label>分线因子 <select id="intLine"></select></label>
+    <span class="small" id="intNote"></span>
+  </div>
+  <svg id="intSvg" width="520" height="300" style="max-width:100%;background:#fbfcfe;border:1px solid var(--line);border-radius:8px"></svg>
+</section>
+
+<section>
+  <h2><span class="step">5</span>预测与多响应优化</h2>
+  <p class="hint">预测：拖动编码值，用回归方程算各响应的预测值，并换算成实际参数。优化：在 {−1, 0, +1}<sup>k</sup> 网格上按各响应归一化满意度加权搜索，列 Top 5。权重就是取舍：没有唯一的「最优」，只有说清取舍的最优。优化完必须做 3–5 批确认实验，别直接进量产。</p>
+  <div id="predSliders"></div>
+  <div id="predOut" style="margin:8px 0"></div>
+  <div class="row">
+    <button id="btnOpt">搜索兼顾窗口</button>
+    <span id="weightBox" class="row"></span>
+  </div>
+  <div style="overflow-x:auto"><table id="optTable"><thead></thead><tbody></tbody></table></div>
+  <p class="small" id="optNote"></p>
+  <div class="note">⚠️ 模型只含主效应 + 二因子交互（线性 + 交互），不含平方项。若中心点均值与角点均值差得明显（见第 3 步曲率提示），说明有曲率，下一步应改用响应曲面（中心复合 / Box-Behnken）精调，别拿这个方程外推。</div>
+</section>
+
+</main>
+<footer>单文件离线工具，数据只在本地浏览器里计算与保存，不上传。方法：2 水平全因子 + 中心点；效应估计与 Minitab Analyze Factorial Design、Excel 回归（编码列 + 乘积列）口径一致，系数 = 效应 / 2。</footer>
+
+<script>
+"use strict";
+/* ---------- 纯计算核心（可独立测试） ---------- */
+const SYMS = ["A","B","C","D","E"];
+function buildTerms(k){
+  const terms = [];
+  for(let i=0;i<k;i++) terms.push([i]);
+  for(let i=0;i<k;i++) for(let j=i+1;j<k;j++) terms.push([i,j]);
+  return terms;
+}
+function termName(term, syms){ return term.map(i=>syms[i]).join("×"); }
+function termValue(term, coded){ return term.reduce((p,i)=>p*coded[i],1); }
+function analyze(corners, k){
+  const terms = buildTerms(k);
+  const nResp = corners[0].y.length;
+  const out = [];
+  for(let r=0;r<nResp;r++){
+    const mean = corners.reduce((s,c)=>s+c.y[r],0)/corners.length;
+    const effects = {}, coeffs = {};
+    for(const t of terms){
+      let sp=0,np=0,sm=0,nm=0;
+      for(const c of corners){
+        if(termValue(t,c.coded)>0){ sp+=c.y[r]; np++; } else { sm+=c.y[r]; nm++; }
+      }
+      const eff = sp/np - sm/nm;
+      effects[t.join(",")] = eff;
+      coeffs[t.join(",")] = eff/2;
+    }
+    out.push({intercept:mean, effects, coeffs});
+  }
+  return out;
+}
+function predict(model, terms, coded){
+  let v = model.intercept;
+  for(const t of terms) v += model.coeffs[t.join(",")] * termValue(t, coded);
+  return v;
+}
+function centerStats(centers, cornerMean){
+  if(!centers.length) return null;
+  const nResp = centers[0].y.length, res = [];
+  for(let r=0;r<nResp;r++){
+    const vals = centers.map(c=>c.y[r]);
+    const m = vals.reduce((a,b)=>a+b,0)/vals.length;
+    const sd = vals.length>1 ? Math.sqrt(vals.reduce((s,v)=>s+(v-m)*(v-m),0)/(vals.length-1)) : 0;
+    res.push({mean:m, sd, curvature:m-cornerMean[r]});
+  }
+  return res;
+}
+function optimize(models, terms, k, goals, weights){
+  weights = weights || goals.map(()=>1);
+  const cand = [];
+  const grid = Math.pow(3,k);
+  for(let n=0;n<grid;n++){
+    let x=n; const coded=[];
+    for(let i=0;i<k;i++){ coded.push((x%3)-1); x=Math.floor(x/3); }
+    cand.push({coded, pred: models.map(m=>predict(m, terms, coded))});
+  }
+  const mins = models.map((_,r)=>Math.min(...cand.map(c=>c.pred[r])));
+  const maxs = models.map((_,r)=>Math.max(...cand.map(c=>c.pred[r])));
+  const wsum = weights.reduce((a,b)=>a+b,0) || 1;
+  for(const c of cand){
+    c.score = c.pred.reduce((s,p,r)=>{
+      const span = (maxs[r]-mins[r]) || 1;
+      const norm = (p-mins[r])/span;
+      return s + weights[r] * (goals[r]==="max" ? norm : 1-norm);
+    },0)/wsum;
+  }
+  cand.sort((a,b)=>b.score-a.score);
+  return cand;
+}
+if(typeof window!=="undefined") window.DOE_CORE = {buildTerms, termName, analyze, predict, centerStats, optimize};
+
+/* ---------- 示例数据 ---------- */
+const EXAMPLES = {
+  bonding: {
+    label: "键合参数（文章案例）",
+    factors: [
+      {name:"超声功率", low:60, high:70, unit:"mW"},
+      {name:"键合压力", low:40, high:50, unit:"cN"},
+      {name:"键合时间", low:15, high:20, unit:"ms"}],
+    responses: [{name:"球剪切力", goal:"max"}, {name:"颈部开裂", goal:"min"}],
+    cornerY: [[35.7,140],[39.7,260],[36.7,120],[45.1,300],[38.3,200],[40.3,320],[38.9,100],[46.3,360]],
+    centerY: [[40.1,205],[39.8,195],[40.2,200]],
+    centerNote: "注：预置的中心点数值是按原文「落在 40g / 200ppm 附近」的描述设的示意重复值，原文未给中心点逐行数据。"
+  },
+  molding: {
+    label: "注塑成型（构造数据）",
+    factors: [
+      {name:"熔体温度", low:180, high:220, unit:"℃"},
+      {name:"注射压力", low:60, high:90, unit:"MPa"},
+      {name:"保压时间", low:4, high:10, unit:"s"}],
+    responses: [{name:"制品收缩率", goal:"min"}, {name:"拉伸强度", goal:"max"}],
+    cornerY: [[1.68,48.8],[1.26,54.8],[1.50,50.2],[0.76,62.2],[1.36,51.2],[1.10,55.2],[1.26,53.8],[0.68,63.8]],
+    centerY: [[1.21,55.2],[1.19,54.8],[1.20,55.0]],
+    centerNote: "注：注塑案例的全部数值都是构造的演示数据，不是实测，只用于熟悉操作。"
+  },
+  blank: {
+    label: "空白",
+    factors: [
+      {name:"因子1", low:0, high:10, unit:""},
+      {name:"因子2", low:0, high:10, unit:""},
+      {name:"因子3", low:0, high:10, unit:""}],
+    responses: [{name:"响应1", goal:"max"}],
+    cornerY: null, centerY: null, centerNote: ""
+  }
+};
+
+/* ---------- 状态 ---------- */
+let factors = [], responses = [], runs = [], runOrder = [], activeResp = 0, currentExample = "bonding";
+let lastModels = null, lastTerms = null;
+const $ = id => document.getElementById(id);
+const fmt = (v,d=2) => (v===null||v===undefined||isNaN(v)) ? "—" : Number(v).toFixed(d);
+const LS_KEY = "doe_factorial_tool_v2";
+
+function saveLocal(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({factors, responses, runs, runOrder, nCenter:$("nCenter").value, currentExample}));
+    $("saveState").textContent = "已自动保存到本机浏览器";
+  }catch(e){}
+}
+function loadLocal(){
+  try{
+    const s = JSON.parse(localStorage.getItem(LS_KEY));
+    if(s && s.factors && s.factors.length>=2 && s.responses && s.responses.length>=1 && s.runs){
+      factors=s.factors; responses=s.responses; runs=s.runs; runOrder=s.runOrder||runs.map((_,i)=>i);
+      currentExample = s.currentExample||"custom";
+      $("nCenter").value = s.nCenter||3;
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+function loadExample(key){
+  const ex = EXAMPLES[key];
+  currentExample = key;
+  factors = JSON.parse(JSON.stringify(ex.factors));
+  responses = JSON.parse(JSON.stringify(ex.responses));
+  activeResp = 0;
+  buildDesign(true);
+  if(ex.cornerY){
+    let ci = 0;
+    runs.forEach(r=>{
+      if(!r.center){ const idx = runs.filter(x=>!x.center).indexOf(r); r.y = ex.cornerY[idx].slice(); }
+      else { r.y = ex.centerY[ci % ex.centerY.length].slice(); ci++; }
+    });
+  }
+  renderAll(); saveLocal();
+}
+
+/* ---------- 因子 / 响应表 ---------- */
+function renderFactors(){
+  const tb = $("factorTable").querySelector("tbody");
+  tb.innerHTML = "";
+  factors.forEach((f,i)=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><b>${SYMS[i]}</b></td>
+      <td><input class="name" data-f="${i}" data-k="name" value="${f.name}"></td>
+      <td><input type="number" step="any" data-f="${i}" data-k="low" value="${f.low}"></td>
+      <td><input type="number" step="any" data-f="${i}" data-k="high" value="${f.high}"></td>
+      <td data-center="${i}">${fmt((f.low+f.high)/2,3)}</td>
+      <td><input class="name" style="width:56px" data-f="${i}" data-k="unit" value="${f.unit}"></td>
+      <td>${factors.length>2?`<button class="ghost" data-del="${i}">删</button>`:""}</td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll("input").forEach(inp=>inp.addEventListener("input",e=>{
+    const i=+e.target.dataset.f, k=e.target.dataset.k;
+    factors[i][k] = (k==="low"||k==="high") ? parseFloat(e.target.value) : e.target.value;
+    const c = tb.querySelector(`[data-center="${i}"]`); if(c) c.textContent = fmt((factors[i].low+factors[i].high)/2,3);
+    currentExample="custom"; renderRuns(); refreshAnalysis(); saveLocal();
+  }));
+  tb.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",e=>{
+    factors.splice(+e.target.dataset.del,1); currentExample="custom";
+    renderFactors(); buildDesign(true); saveLocal();
+  }));
+  fillInteractionSelects();
+}
+$("addFactor").addEventListener("click",()=>{
+  if(factors.length>=5) return;
+  factors.push({name:"新因子", low:0, high:10, unit:""});
+  currentExample="custom"; renderFactors(); buildDesign(true); saveLocal();
+});
+function renderResponses(){
+  const tb = $("respTable").querySelector("tbody");
+  tb.innerHTML = "";
+  responses.forEach((r,i)=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><b>Y${i+1}</b></td>
+      <td><input class="name" data-r="${i}" value="${r.name}"></td>
+      <td><select data-rgoal="${i}">
+        <option value="max" ${r.goal==="max"?"selected":""}>越大越好</option>
+        <option value="min" ${r.goal==="min"?"selected":""}>越小越好</option></select></td>
+      <td>${responses.length>1?`<button class="ghost" data-rdel="${i}">删</button>`:""}</td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll("input[data-r]").forEach(inp=>inp.addEventListener("input",e=>{
+    responses[+e.target.dataset.r].name = e.target.value;
+    renderRuns(); syncTabs(); renderWeights(); saveLocal();
+  }));
+  tb.querySelectorAll("select[data-rgoal]").forEach(sel=>sel.addEventListener("change",e=>{
+    responses[+e.target.dataset.rgoal].goal = e.target.value; saveLocal();
+  }));
+  tb.querySelectorAll("[data-rdel]").forEach(b=>b.addEventListener("click",e=>{
+    const idx = +e.target.dataset.rdel;
+    responses.splice(idx,1);
+    runs.forEach(r=>r.y.splice(idx,1));
+    if(activeResp>=responses.length) activeResp = 0;
+    renderResponses(); renderRuns(); refreshAnalysis(); saveLocal();
+  }));
+  renderWeights();
+}
+$("addResp").addEventListener("click",()=>{
+  if(responses.length>=4) return;
+  responses.push({name:"新响应", goal:"max"});
+  runs.forEach(r=>r.y.push(null));
+  renderResponses(); renderRuns(); refreshAnalysis(); saveLocal();
+});
+function renderWeights(){
+  $("weightBox").innerHTML = responses.map((r,i)=>
+    `<label>${r.name} 权重 <input type="number" id="w${i}" value="1" min="0" step="0.5" style="width:56px"></label>`).join("");
+}
+
+/* ---------- 设计生成 ---------- */
+function standardRuns(){
+  const k = factors.length, list = [];
+  const n = Math.pow(2,k);
+  for(let r=0;r<n;r++){
+    const coded = [];
+    for(let i=0;i<k;i++) coded.push( ((r>>i)&1) ? 1 : -1 );
+    list.push({coded, center:false, y:responses.map(()=>null)});
+  }
+  const nc = Math.max(0, parseInt($("nCenter").value)||0);
+  for(let c=0;c<nc;c++) list.push({coded:factors.map(()=>0), center:true, y:responses.map(()=>null)});
+  return list;
+}
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function buildDesign(clearResp){
+  const old = runs;
+  runs = standardRuns();
+  if(!clearResp && old.length===runs.length && old[0] && old[0].y.length===responses.length){
+    runs.forEach((r,i)=>{ r.y = old[i].y.slice(); });
+  }
+  runOrder = shuffle(runs.map((_,i)=>i));
+  renderRuns(); refreshAnalysis();
+}
+function actualOf(f, coded){ return (f.low+f.high)/2 + coded*((f.high-f.low)/2); }
+function renderRuns(){
+  const head = $("runTable").querySelector("thead");
+  head.innerHTML = "<tr><th>运行序</th><th>标准序</th>" +
+    factors.map((f,i)=>`<th>${SYMS[i]} ${f.name}<br><span class="small">编码 / 实际(${f.unit})</span></th>`).join("") +
+    responses.map(r=>`<th>${r.name}</th>`).join("") + "<th>类型</th></tr>";
+  const tb = $("runTable").querySelector("tbody");
+  tb.innerHTML = "";
+  runOrder.forEach((ri, pos)=>{
+    const r = runs[ri], tr = document.createElement("tr");
+    tr.innerHTML = `<td><b>${pos+1}</b></td><td>${ri+1}</td>` +
+      r.coded.map((c,i)=>`<td>${c>0?"+1":c<0?"−1":"0"} / ${fmt(actualOf(factors[i],c),2)}</td>`).join("") +
+      responses.map((_,j)=>`<td><input class="resp" type="number" step="any" data-run="${ri}" data-r="${j}" value="${r.y[j]??""}"></td>`).join("") +
+      `<td>${r.center?'<span class="ok">中心点</span>':"角点"}</td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll("input.resp").forEach(inp=>inp.addEventListener("input",e=>{
+    const v = e.target.value==="" ? null : parseFloat(e.target.value);
+    runs[+e.target.dataset.run].y[+e.target.dataset.r] = v;
+    refreshAnalysis(); saveLocal();
+  }));
+}
+$("btnDesign").addEventListener("click",()=>{ buildDesign(false); saveLocal(); });
+$("btnRandom").addEventListener("click",()=>{ runOrder = shuffle(runs.map((_,i)=>i)); renderRuns(); saveLocal(); });
+$("btnClearResp").addEventListener("click",()=>{ runs.forEach(r=>r.y=responses.map(()=>null)); renderRuns(); refreshAnalysis(); saveLocal(); });
+$("nCenter").addEventListener("change",()=>{ buildDesign(false); saveLocal(); });
+$("exBonding").addEventListener("click",()=>loadExample("bonding"));
+$("exMolding").addEventListener("click",()=>loadExample("molding"));
+$("exBlank").addEventListener("click",()=>loadExample("blank"));
+$("btnCsv").addEventListener("click",()=>{
+  let csv = "运行序,标准序," + factors.map((f,i)=>`${SYMS[i]}_${f.name}_编码,${SYMS[i]}_实际`).join(",") +
+    "," + responses.map(r=>r.name).join(",") + ",类型\n";
+  runOrder.forEach((ri,pos)=>{
+    const r=runs[ri];
+    csv += [pos+1, ri+1, ...r.coded.flatMap((c,i)=>[c, fmt(actualOf(factors[i],c),3)]),
+      ...responses.map((_,j)=>r.y[j]??""), r.center?"中心点":"角点"].join(",")+"\n";
+  });
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv"}));
+  a.download="doe_run_sheet.csv"; a.click(); URL.revokeObjectURL(a.href);
+});
+$("csvFile").addEventListener("change",e=>{
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const lines = String(reader.result).replace(/^\ufeff/,"").trim().split(/\r?\n/);
+      const ncolFactor = factors.length*2;
+      let filled = 0;
+      for(let li=1; li<lines.length; li++){
+        const cells = lines[li].split(",");
+        const std = parseInt(cells[1]);
+        if(!std || std<1 || std>runs.length) continue;
+        const y = [];
+        for(let j=0;j<responses.length;j++){
+          const v = cells[2+ncolFactor+j];
+          y.push(v===undefined||v==="" ? null : parseFloat(v));
+        }
+        runs[std-1].y = y; filled++;
+      }
+      renderRuns(); refreshAnalysis(); saveLocal();
+      alert(`已按标准序导入 ${filled} 行响应。`);
+    }catch(err){ alert("CSV 解析失败，请用本工具导出的格式。"); }
+  };
+  reader.readAsText(file);
+});
+
+/* ---------- 分析 ---------- */
+function getData(){
+  const corners = runs.filter(r=>!r.center), centers = runs.filter(r=>r.center);
+  const ok = corners.length>0 && corners.every(r=>r.y.every(v=>v!==null&&v!==undefined&&!isNaN(v)));
+  return {corners, centers, ok};
+}
+function syncTabs(){
+  const box = $("respTabs");
+  box.innerHTML = "";
+  responses.forEach((r,i)=>{
+    const b = document.createElement("button");
+    b.textContent = r.name; if(i===activeResp) b.classList.add("on");
+    b.addEventListener("click",()=>{ activeResp=i; refreshAnalysis(); });
+    box.appendChild(b);
+  });
+  const sel = $("intResp");
+  sel.innerHTML = responses.map((r,i)=>`<option value="${i}">${r.name}</option>`).join("");
+}
+function refreshAnalysis(){
+  syncTabs();
+  const {corners, centers, ok} = getData();
+  const box = $("pareto");
+  if(!ok){
+    box.innerHTML = '<p class="small">角点响应还没填齐，填齐 2<sup>k</sup> 个角点的全部响应后自动出效应。</p>';
+    $("equation").textContent = "填齐角点响应后自动生成";
+    $("centerInfo").textContent = ""; lastModels=null;
+    drawInteraction(); renderPredictors();
+    return;
+  }
+  const k = factors.length, terms = buildTerms(k);
+  const models = analyze(corners, k);
+  lastModels = models; lastTerms = terms;
+  const m = models[activeResp];
+  const rows = terms.map(t=>({name:termName(t,SYMS), eff:m.effects[t.join(",")]}))
+                     .sort((a,b)=>Math.abs(b.eff)-Math.abs(a.eff));
+  const maxAbs = Math.max(...rows.map(r=>Math.abs(r.eff)));
+  const filledCenters = centers.filter(c=>c.y[activeResp]!==null&&c.y[activeResp]!==undefined);
+  const csAll = filledCenters.length ? centerStats(filledCenters, models.map(mm=>mm.intercept)) : null;
+  const cs = csAll ? csAll[activeResp] : null;
+  box.innerHTML = rows.map(r=>{
+    const w = maxAbs? Math.abs(r.eff)/maxAbs*100 : 0;
+    const flag = cs && cs.sd>0 ? (Math.abs(r.eff) > 2*cs.sd ? '<span class="ok">＞2×纯误差SD</span>' : '<span class="bad">在噪声内</span>') : "";
+    return `<div class="bar-row"><span><b>${r.name}</b></span>
+      <div class="bar-track"><div class="bar-fill ${r.eff<0?"neg":""}" style="width:${w}%"></div></div>
+      <span>${fmt(r.eff)} ${flag}</span></div>`;
+  }).join("");
+  $("equation").innerHTML = models.map((mm,r)=>{
+    const parts = terms.map(t=>{
+      const c = mm.coeffs[t.join(",")];
+      return `${c>=0?"+":"−"} ${fmt(Math.abs(c))}·${termName(t,SYMS)}`;
+    }).join(" ");
+    return `${responses[r].name} = ${fmt(mm.intercept)} ${parts}`;
+  }).join("<br>");
+  let info = "";
+  if(cs){
+    info = `中心点（n=${filledCenters.length}）：均值 ${fmt(cs.mean)}，纯误差 SD ${fmt(cs.sd)}；` +
+      `曲率 = 中心均值 − 角点均值 = ${fmt(cs.curvature)}` +
+      (cs.sd>0 && Math.abs(cs.curvature) > 2*cs.sd ? '，<b class="bad">曲率明显，模型可能缺平方项，考虑转响应曲面。</b>' : "，曲率不明显，线性+交互模型可用。");
+  } else info = "没有可用的中心点数据，无法估纯误差与曲率。";
+  const ex = EXAMPLES[currentExample];
+  if(ex && ex.centerNote && centers.length) info += "<br>" + ex.centerNote;
+  $("centerInfo").innerHTML = info;
+  drawInteraction(); renderPredictors();
+}
+
+/* ---------- 交互作用图 ---------- */
+function fillInteractionSelects(){
+  const opts = factors.map((f,i)=>`<option value="${i}">${SYMS[i]} ${f.name}</option>`).join("");
+  $("intX").innerHTML = opts; $("intLine").innerHTML = opts;
+  $("intX").value = "0"; $("intLine").value = factors.length>1 ? "1" : "0";
+}
+["intResp","intX","intLine"].forEach(id=>$(id).addEventListener("change",drawInteraction));
+function drawInteraction(){
+  const svg = $("intSvg"); svg.innerHTML = "";
+  const {corners, ok} = getData();
+  if(!ok){ $("intNote").textContent = "角点数据填齐后出图。"; return; }
+  const r = +$("intResp").value || 0, xi = +$("intX").value, li = +$("intLine").value;
+  if(xi===li){ $("intNote").textContent = "横轴因子和分线因子不能相同。"; return; }
+  const models = analyze(corners, factors.length);
+  const terms = buildTerms(factors.length);
+  const base = factors.map(()=>0);
+  const pts = lv => [-1,1].map(xv=>{
+    const coded = base.slice(); coded[xi]=xv; coded[li]=lv;
+    return predict(models[r], terms, coded);
+  });
+  const yLow = pts(-1), yHigh = pts(1);
+  const all = [...yLow, ...yHigh];
+  let ymin = Math.min(...all), ymax = Math.max(...all);
+  const pad = (ymax-ymin)*0.15 || 1; ymin-=pad; ymax+=pad;
+  const W=520,H=300,L=56,R=130,T=26,B=44;
+  const X = v => L + (v+1)/2*(W-L-R);
+  const Y = v => T + (ymax-v)/(ymax-ymin)*(H-T-B);
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (tag,attrs,txt)=>{ const e=document.createElementNS(NS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); if(txt!==undefined) e.textContent=txt; svg.appendChild(e); return e; };
+  el("line",{x1:L,y1:H-B,x2:W-R,y2:H-B,stroke:"#9fb2c3"});
+  el("line",{x1:L,y1:T,x2:L,y2:H-B,stroke:"#9fb2c3"});
+  for(let g=0;g<=4;g++){ const v=ymin+(ymax-ymin)*g/4, y=Y(v);
+    el("line",{x1:L,y1:y,x2:W-R,y2:y,stroke:"#e6ecf2"});
+    el("text",{x:L-6,y:y+4,"text-anchor":"end","font-size":11,fill:"#5b6b7c"}, fmt(v,1)); }
+  el("text",{x:X(-1),y:H-B+20,"text-anchor":"middle","font-size":12}, `${SYMS[xi]} 低 (−1)`);
+  el("text",{x:X(1),y:H-B+20,"text-anchor":"middle","font-size":12}, `${SYMS[xi]} 高 (+1)`);
+  const line = (ys,color,label,ly)=>{
+    el("polyline",{points:`${X(-1)},${Y(ys[0])} ${X(1)},${Y(ys[1])}`,fill:"none",stroke:color,"stroke-width":2.5});
+    ys.forEach((v,i)=>el("circle",{cx:X(i?1:-1),cy:Y(v),r:4,fill:color}));
+    el("text",{x:W-R+12,y:ly,"font-size":12,fill:color}, label);
+    el("text",{x:W-R+12,y:ly+15,"font-size":11,fill:"#5b6b7c"}, `${fmt(ys[0],1)} → ${fmt(ys[1],1)}`);
+  };
+  line(yLow, "#0b6bcb", `${SYMS[li]} 低 (−1)`, 70);
+  line(yHigh, "#e07b39", `${SYMS[li]} 高 (+1)`, 120);
+  const key = [Math.min(xi,li),Math.max(xi,li)].join(",");
+  $("intNote").textContent = `${termName([Math.min(xi,li),Math.max(xi,li)],SYMS)} 交互效应 = ${fmt(models[r].effects[key])}（其余因子取中心 0）`;
+}
+
+/* ---------- 预测与优化 ---------- */
+function renderPredictors(){
+  const box = $("predSliders");
+  box.innerHTML = factors.map((f,i)=>`<div class="row" style="margin:4px 0">
+    <label style="min-width:210px"><b>${SYMS[i]} ${f.name}</b> 编码值
+      <input type="range" min="-1" max="1" step="0.1" value="0" data-pred="${i}" style="width:130px;vertical-align:middle">
+      <span data-predval="${i}">0.0</span></label>
+    <span class="small" data-predactual="${i}"></span></div>`).join("");
+  box.querySelectorAll("[data-pred]").forEach(s=>s.addEventListener("input",updatePrediction));
+  updatePrediction();
+}
+function currentCoded(){ return factors.map((_,i)=>{ const s=document.querySelector(`[data-pred="${i}"]`); return s? parseFloat(s.value):0; }); }
+function updatePrediction(){
+  const coded = currentCoded();
+  coded.forEach((c,i)=>{
+    const sv = document.querySelector(`[data-predval="${i}"]`); if(sv) sv.textContent = fmt(c,1);
+    const sa = document.querySelector(`[data-predactual="${i}"]`); if(sa) sa.textContent = `→ 实际 ${fmt(actualOf(factors[i],c),2)} ${factors[i].unit}`;
+  });
+  if(!lastModels){ $("predOut").textContent = ""; return; }
+  const p = lastModels.map(m=>predict(m, lastTerms, coded));
+  $("predOut").innerHTML = "预测：" + responses.map((r,i)=>`<b>${r.name} = ${fmt(p[i])}</b>`).join("；");
+}
+$("btnOpt").addEventListener("click",()=>{
+  if(!lastModels){ alert("先把角点响应填齐。"); return; }
+  const goals = responses.map(r=>r.goal);
+  const weights = responses.map((_,i)=>{ const w=document.getElementById("w"+i); return w? (parseFloat(w.value)||0) : 1; });
+  const top = optimize(lastModels, lastTerms, factors.length, goals, weights).slice(0,5);
+  $("optTable").querySelector("thead").innerHTML = "<tr><th>#</th>" +
+    factors.map((f,i)=>`<th>${SYMS[i]} ${f.name}(实际)</th>`).join("") +
+    responses.map(r=>`<th>预测 ${r.name}</th>`).join("") + "<th>综合满意度</th></tr>";
+  $("optTable").querySelector("tbody").innerHTML = top.map((c,idx)=>`<tr><td>${idx+1}</td>` +
+    c.coded.map((v,i)=>`<td>${v>0?"+1":v<0?"−1":"0"}（${fmt(actualOf(factors[i],v),2)}）</td>`).join("") +
+    c.pred.map(p=>`<td>${fmt(p)}</td>`).join("") +
+    `<td>${fmt(c.score,3)}</td></tr>`).join("");
+  $("optNote").textContent = currentExample==="bonding"
+    ? "键合案例提示：等权（1:1）时最优点偏向 A 低水平，因为开裂主要由 A 驱动（实测效应 +170 ppm，远大于 A×B 的 +50）；原文推荐 A+B+C−（45.1g / 300ppm）相当于把剪切力权重拉高、并接受 300 ppm 为可接受上限。两边不矛盾，差的是目标函数。"
+    : "";
+});
+
+/* ---------- 初始化 ---------- */
+function renderAll(){
+  renderFactors(); renderResponses(); renderRuns(); refreshAnalysis();
+}
+if(loadLocal()){ renderAll(); }
+else { loadExample("bonding"); }
+</script>
+</body>
+</html>
