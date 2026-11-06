@@ -66,7 +66,7 @@
 
 <section>
   <h2>示例与数据</h2>
-  <p class="hint">示例1 是封装键合的参数优化案例（中心点为演示用示意重复值）；示例2 注塑成型是构造数据，只用于演示操作；「空白新建」从你自己的实验开始。切换示例会覆盖当前内容。你的编辑会自动保存在本机浏览器里，关掉重开还在。</p>
+  <p class="hint">两个内置示例（键合参数优化、注塑成型）的数值都是构造的演示数据，不是实测，只用于熟悉流程；「空白新建」从你自己的实验开始。切换示例会覆盖当前内容。你的编辑会自动保存在本机浏览器里，关掉重开还在。</p>
   <div class="row">
     <button class="ghost" id="exBonding">示例1：键合参数优化</button>
     <button class="ghost" id="exMolding">示例2：注塑成型（构造数据）</button>
@@ -224,13 +224,13 @@ const EXAMPLES = {
   bonding: {
     label: "键合参数优化案例",
     factors: [
-      {name:"超声功率", low:60, high:70, unit:"mW"},
-      {name:"键合压力", low:40, high:50, unit:"cN"},
-      {name:"键合时间", low:15, high:20, unit:"ms"}],
+      {name:"超声功率", low:55, high:75, unit:"mW"},
+      {name:"键合压力", low:35, high:55, unit:"cN"},
+      {name:"键合时间", low:12, high:22, unit:"ms"}],
     responses: [{name:"球剪切力", goal:"max"}, {name:"颈部开裂", goal:"min"}],
-    cornerY: [[35.7,140],[39.7,260],[36.7,120],[45.1,300],[38.3,200],[40.3,320],[38.9,100],[46.3,360]],
-    centerY: [[40.1,205],[39.8,195],[40.2,200]],
-    centerNote: "注：中心点数值是演示用示意重复值（落在 40g / 200ppm 附近），正式分析请替换为真实中心点数据。"
+    cornerY: [[37.6,138],[41.3,238],[37.9,98],[47.4,297],[40.0,177],[42.1,309],[40.8,93],[48.7,330]],
+    centerY: [[42.3,188],[41.8,196],[42.1,192]],
+    centerNote: "注：本示例全部数值为构造的演示数据，不是实测；正式分析请替换为真实数据。"
   },
   molding: {
     label: "注塑成型（构造数据）",
@@ -258,7 +258,7 @@ const EXAMPLES = {
 let factors = [], responses = [], runs = [], runOrder = [], activeResp = 0, currentExample = "bonding";
 let lastModels = null, lastTerms = null;
 const $ = id => document.getElementById(id);
-const fmt = (v,d=2) => (v===null||v===undefined||isNaN(v)) ? "—" : Number(v).toFixed(d);
+const fmt = (v,d=2) => { if(v===null||v===undefined||isNaN(v)) return "—"; const p=Math.pow(10,d); return (Math.round((Math.abs(v)+1e-9)*p)/p * Math.sign(v)).toFixed(d); };
 const LS_KEY = "doe_factorial_tool_v2";
 
 function saveLocal(){
@@ -610,7 +610,7 @@ $("btnOpt").addEventListener("click",()=>{
     c.pred.map(p=>`<td>${fmt(p)}</td>`).join("") +
     `<td>${fmt(c.score,3)}</td></tr>`).join("");
   $("optNote").textContent = currentExample==="bonding"
-    ? "键合案例提示：等权（1:1）时最优点偏向 A 低水平，因为开裂主要由 A 驱动（效应 +170 ppm，远大于 A×B 的 +50）；把剪切力权重拉高、并接受 300 ppm 为可接受上限时，最优点回到 A+B+C−（45.1g / 300ppm）。两种结果不矛盾，差的是目标函数。"
+    ? "键合案例提示：等权（1:1）时最优点偏向 A 低水平，因为开裂主要由 A 驱动（效应 +167 ppm，远大于 A×B 的 +51）；把剪切力权重拉高、并接受 300 ppm 为可接受上限时，最优点回到 A+B+C−（47.4g / 297ppm）。两种结果不矛盾，差的是目标函数。"
     : "";
 });
 
